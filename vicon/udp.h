@@ -10,6 +10,7 @@
 // Standard C++ includes
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <iostream>
 #include <mutex>
 #include <stdexcept>
@@ -21,6 +22,12 @@ namespace BoBRobotics
 {
 namespace Vicon
 {
+<<<<<<< HEAD
+=======
+using namespace std::literals;
+using namespace units::angle;
+using namespace units::length;
+>>>>>>> 32a4c65... Add waitForObject() method to Vicon::UDPClient
 using namespace units::literals;
 
 //----------------------------------------------------------------------------
@@ -367,6 +374,14 @@ public:
                             Stopwatch::Duration timeoutDuration = Stopwatch::Duration::max())
     {
         return ObjectReference<ObjectDataType>(*this, id, timeoutDuration);
+    }
+
+    void waitForObject()
+    {
+        while (getNumObjects() == 0) {
+            std::this_thread::sleep_for(1s);
+            std::cout << "Waiting for object" << std::endl;
+        }
     }
 
 private:
