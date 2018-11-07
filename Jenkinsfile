@@ -92,8 +92,8 @@ for(b = 0; b < builderNodes.size; b++) {
 
             // Build-test examples, projects and tools
             buildAll("examples");
-            buildAll("projects");
-            buildAll("tools");
+            // buildAll("projects");
+            // buildAll("tools");
         }
     }
 }
