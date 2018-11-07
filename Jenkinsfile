@@ -21,7 +21,7 @@ void buildAll(String type) {
         if (isUnix()) {
             dir(type) {
                 // Generate unique name for message
-                def uniqueMsg = "msg_" + env.NODE_NAME;
+                def uniqueMsg = "msg_build_" + type + "_" + env.NODE_NAME;
 
                 setBuildStatus("Building " + type, "PENDING");
 
