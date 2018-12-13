@@ -78,7 +78,7 @@ bob_main(int, char **)
 
         if (runPositioner) {
             const auto objectData = vicon.getObjectData(0);
-            if (objectData.getElapsedTime() > 10s) {
+            if (objectData.timeSinceReceived() > 10s) {
                 bot.stopMoving();
                 runPositioner = false;
                 std::cerr << "Error: Could not get position from Vicon system\n"
