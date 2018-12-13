@@ -14,7 +14,6 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <utility>
 #include <vector>
 
 namespace BoBRobotics
@@ -44,15 +43,18 @@ public:
     //----------------------------------------------------------------------------
     // Public API
     //----------------------------------------------------------------------------
-    void update(uint32_t frameNumber, std::string &&objectName,
-                millimeter_t x, millimeter_t y, millimeter_t z,
+    void update(const char(&name)[24], uint32_t frameNumber, millimeter_t x, millimeter_t y, millimeter_t z,
                 radian_t yaw, radian_t pitch, radian_t roll)
     {
+        // Copy name
+        // **NOTE** this must already be NULL-terminated
+        memcpy(&m_Name[0], &name[0], 24);
+
+        // Log the time when this packet was received
+        m_ReceivedTimer.start();
+
         // Cache frame number
         m_FrameNumber = frameNumber;
-
-        // Update object name
-        m_ObjectName = objectName;
 
         // Copy vectors into class
         m_Position[0] = x;
@@ -63,24 +65,9 @@ public:
         m_Attitude[2] = roll;
     }
 
-    auto getElapsedTime() const
-    {
-        return m_ElapsedTime;
-    }
-
-    void setElapsedTime(const Stopwatch::Duration elapsed)
-    {
-        m_ElapsedTime = elapsed;
-    }
-
     uint32_t getFrameNumber() const
     {
         return m_FrameNumber;
-    }
-
-    const std::string &getObjectName() const
-    {
-        return m_ObjectName;
     }
 
     template<typename LengthUnit = millimeter_t>
@@ -95,15 +82,19 @@ public:
         return convertUnitArray<AngleUnit>(m_Attitude);
     }
 
+    const char *getName() const{ return m_Name; }
+
+    auto timeSinceReceived() const { return m_ReceivedTimer.elapsed(); }
+
 private:
     //----------------------------------------------------------------------------
     // Members
     //----------------------------------------------------------------------------
     uint32_t m_FrameNumber;
-    std::string m_ObjectName;
-    Stopwatch::Duration m_ElapsedTime;
+    char m_Name[24];
     Position3<millimeter_t> m_Position;
     Vector3<radian_t> m_Attitude;
+    Stopwatch m_ReceivedTimer;
 };
 
 //----------------------------------------------------------------------------
@@ -124,11 +115,10 @@ public:
     //----------------------------------------------------------------------------
     // Public API
     //----------------------------------------------------------------------------
-    void update(uint32_t frameNumber, std::string &&objectName,
-                millimeter_t x, millimeter_t y, millimeter_t z,
+    void update(const char(&name)[24], uint32_t frameNumber, millimeter_t x, millimeter_t y, millimeter_t z,
                 radian_t yaw, radian_t pitch, radian_t roll)
     {
-        const Position3<millimeter_t> position {x, y, z};
+        const Position3<millimeter_t> position{ x, y, z };
         constexpr millisecond_t frameS = 10_ms;
         constexpr millisecond_t smoothingS = 30_ms;
 
@@ -158,7 +148,8 @@ public:
                        smoothVelocity);
 
         // Superclass
-        ObjectData::update(frameNumber, std::move(objectName), x, y, z, yaw, pitch, roll);
+        // **NOTE** this is at the bottom so OLD position can be accessed
+        ObjectData::update(name, frameNumber, x, y, z, yaw, pitch, roll);
     }
 
     template<typename VelocityUnit = meters_per_second_t>
@@ -285,17 +276,30 @@ public:
         return m_ObjectData.size();
     }
 
+    unsigned int findObjectID(const std::string &name)
+    {
+        // Search for object with name
+        std::lock_guard<std::mutex> guard(m_ObjectDataMutex);
+        auto objIter = std::find_if(m_ObjectData.cbegin(), m_ObjectData.cend(),
+            [&name](const ObjectDataType &object)
+            {
+                return (strcmp(object.getName(), name.c_str()) == 0);
+            });
+
+        // If object wasn't found, raise error
+        if(objIter == m_ObjectData.cend()) {
+            throw std::out_of_range("Cannot find object '" + name + "'");
+        }
+        // Otherwise, return its index i.e. object ID
+        else {
+            return (unsigned int)std::distance(m_ObjectData.cbegin(), objIter);
+        }
+    }
+
     ObjectDataType getObjectData(unsigned int id)
     {
         std::lock_guard<std::mutex> guard(m_ObjectDataMutex);
-        if(id < m_ObjectData.size()) {
-            auto data = m_ObjectData[id].first;
-            data.setElapsedTime(m_ObjectData[id].second.elapsed());
-            return data;
-        }
-        else {
-            throw std::runtime_error("Invalid object id: " + std::to_string(id));
-        }
+        return m_ObjectData.at(id);
     }
 
     Object getObject(unsigned int id)
@@ -307,8 +311,8 @@ private:
     //----------------------------------------------------------------------------
     // Private API
     //----------------------------------------------------------------------------
-    void updateObjectData(unsigned int id, uint32_t frameNumber,
-                          std::string &&objectName,
+    void updateObjectData(unsigned int id, const char(&name)[24],
+                          uint32_t frameNumber,
                           const Vector3<double> &position,
                           const Vector3<double> &attitude)
     {
@@ -319,7 +323,6 @@ private:
         if (id >= m_ObjectData.size()) {
             m_ObjectData.resize(id + 1);
         }
-        m_ObjectData[id].second.start();
 
         /*
          * Update object data with position and attitude.
@@ -330,14 +333,13 @@ private:
          */
         using namespace units::length;
         using namespace units::angle;
-        m_ObjectData[id].first.update(frameNumber,
-                                      std::move(objectName),
-                                      millimeter_t(position[0]),
-                                      millimeter_t(position[1]),
-                                      millimeter_t(position[2]),
-                                      radian_t(attitude[2]),
-                                      radian_t(attitude[0]),
-                                      radian_t(attitude[1]));
+        m_ObjectData[id].update(name, frameNumber,
+                                millimeter_t(position[0]),
+                                millimeter_t(position[1]),
+                                millimeter_t(position[2]),
+                                radian_t(attitude[2]),
+                                radian_t(attitude[0]),
+                                radian_t(attitude[1]));
     }
 
     void readThread(int socket)
@@ -383,9 +385,10 @@ private:
                     memcpy(&itemDataSize, &buffer[itemOffset + 1], sizeof(uint16_t));
                     BOB_ASSERT(itemDataSize == 72);
 
-                    // Read object name
-                    char objectName[23];
-                    memcpy(&objectName, &buffer[itemOffset + 3], sizeof(objectName));
+                    // Read object name and check it is NULL-terminated
+                    char objectName[24];
+                    memcpy(&objectName[0], &buffer[itemOffset + 3], 24);
+                    BOB_ASSERT(objectName[23] == '\0');
 
                     // Read object position
                     Vector3<double> position;
@@ -396,7 +399,7 @@ private:
                     memcpy(&attitude[0], &buffer[itemOffset + 51], 3 * sizeof(double));
 
                     // Update item
-                    updateObjectData(objectID, frameNumber, objectName, position, attitude);
+                    updateObjectData(objectID, objectName, frameNumber, position, attitude);
 
                     // Update offset for next offet
                     itemOffset += itemDataSize;
@@ -416,7 +419,7 @@ private:
     void *m_ReadUserData;
 
     std::mutex m_ObjectDataMutex;
-    std::vector<std::pair<ObjectDataType, Stopwatch>> m_ObjectData;
+    std::vector<ObjectDataType> m_ObjectData;
 };
 } // namespace Vicon
 } // BoBRobotics
