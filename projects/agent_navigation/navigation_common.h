@@ -88,11 +88,11 @@ runNavigation(Robots::Robot &robot,
               const float forwardSpeed,
               const float turnSpeed,
               Video::Input &videoInput,
-              const Position2<LengthUnit> &minBounds,
-              const Position2<LengthUnit> &maxBounds,
+              const Vector2<LengthUnit> &minBounds,
+              const Vector2<LengthUnit> &maxBounds,
               DisplayType &display,
               std::function<void()> resetPosition = nullptr,
-              const std::vector<std::vector<Position2<LengthUnit>>> &objects = {},
+              const std::vector<std::vector<Vector2<LengthUnit>>> &objects = {},
               units::angular_velocity::radians_per_second_t robotTurnSpeed = 0_deg_per_s)
 {
     if (robotTurnSpeed == 0_deg_per_s) {

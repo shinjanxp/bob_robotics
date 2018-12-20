@@ -89,7 +89,7 @@ public:
     }
 
     template<typename LengthUnit = meter_t>
-    Position3<LengthUnit> getPosition()
+    Vector3<LengthUnit> getPosition()
     {
         std::lock_guard<std::mutex> guard(m_PoseMutex);
         updatePose();
@@ -97,7 +97,7 @@ public:
     }
 
     template<typename AngleUnit = degree_t>
-    Vector3<AngleUnit> getAttitude()
+    Array3<AngleUnit> getAttitude()
     {
         std::lock_guard<std::mutex> guard(m_PoseMutex);
         updatePose();

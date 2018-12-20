@@ -84,8 +84,8 @@ bob_main(int, char **)
                 std::cerr << "Error: Could not get position from Vicon system\n"
                           << "Stopping trial" << std::endl;
             } else {
-                const Position3<millimeter_t> position = objectData.getPosition();
-                const Vector3<radian_t> attitude = objectData.getAttitude();
+                const Vector3<millimeter_t> position = objectData.getPosition();
+                const Array3<radian_t> attitude = objectData.getAttitude();
                 robp.updateMotors(bot, { position[0], position[1], attitude[0] });
             }
         } else if (!joystickUpdate) {

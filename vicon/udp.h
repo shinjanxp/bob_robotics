@@ -71,13 +71,13 @@ public:
     }
 
     template<typename LengthUnit = millimeter_t>
-    Position3<LengthUnit> getPosition() const
+    Vector3<LengthUnit> getPosition() const
     {
         return convertUnitArray<LengthUnit>(m_Position);
     }
 
     template<typename AngleUnit = radian_t>
-    Vector3<AngleUnit> getAttitude() const
+    Array3<AngleUnit> getAttitude() const
     {
         return convertUnitArray<AngleUnit>(m_Attitude);
     }
@@ -92,8 +92,8 @@ private:
     //----------------------------------------------------------------------------
     uint32_t m_FrameNumber;
     char m_Name[24];
-    Position3<millimeter_t> m_Position;
-    Vector3<radian_t> m_Attitude;
+    Vector3<millimeter_t> m_Position;
+    Array3<radian_t> m_Attitude;
     Stopwatch m_ReceivedTimer;
 };
 
@@ -118,7 +118,7 @@ public:
     void update(const char(&name)[24], uint32_t frameNumber, millimeter_t x, millimeter_t y, millimeter_t z,
                 radian_t yaw, radian_t pitch, radian_t roll)
     {
-        const Position3<millimeter_t> position{ x, y, z };
+        const Vector3<millimeter_t> position{ x, y, z };
         constexpr millisecond_t frameS = 10_ms;
         constexpr millisecond_t smoothingS = 30_ms;
 
@@ -131,7 +131,7 @@ public:
 
         // Calculate instantaneous velocity
         const auto oldPosition = getPosition<>();
-        Vector3<meters_per_second_t> instVelocity;
+        Array3<meters_per_second_t> instVelocity;
         const auto calcVelocity = [deltaS](auto curr, auto prev) {
             return (curr - prev) / deltaS;
         };
@@ -153,7 +153,7 @@ public:
     }
 
     template<typename VelocityUnit = meters_per_second_t>
-    Vector3<VelocityUnit> getVelocity() const
+    Array3<VelocityUnit> getVelocity() const
     {
         return convertUnitArray<VelocityUnit>(m_Velocity);
     }
@@ -162,7 +162,7 @@ private:
     //----------------------------------------------------------------------------
     // Members
     //----------------------------------------------------------------------------
-    Vector3<meters_per_second_t> m_Velocity;
+    Array3<meters_per_second_t> m_Velocity;
 };
 
 //----------------------------------------------------------------------------
@@ -185,13 +185,13 @@ public:
         {}
 
         template<typename LengthUnit = millimeter_t>
-        Position3<LengthUnit> getPosition() const
+        Vector3<LengthUnit> getPosition() const
         {
             return getData().template getPosition<LengthUnit>();
         }
 
         template<typename AngleUnit = radian_t>
-        Vector3<AngleUnit> getAttitude() const
+        Array3<AngleUnit> getAttitude() const
         {
             return getData().template getAttitude<AngleUnit>();
         }
@@ -313,8 +313,8 @@ private:
     //----------------------------------------------------------------------------
     void updateObjectData(unsigned int id, const char(&name)[24],
                           uint32_t frameNumber,
-                          const Vector3<double> &position,
-                          const Vector3<double> &attitude)
+                          const Array3<double> &position,
+                          const Array3<double> &attitude)
     {
         // Lock mutex
         std::lock_guard<std::mutex> guard(m_ObjectDataMutex);
@@ -391,11 +391,11 @@ private:
                     BOB_ASSERT(objectName[23] == '\0');
 
                     // Read object position
-                    Vector3<double> position;
+                    Array3<double> position;
                     memcpy(&position[0], &buffer[itemOffset + 27], 3 * sizeof(double));
 
                     // Read object attitude
-                    Vector3<double> attitude;
+                    Array3<double> attitude;
                     memcpy(&attitude[0], &buffer[itemOffset + 51], 3 * sizeof(double));
 
                     // Update item

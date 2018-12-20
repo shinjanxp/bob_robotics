@@ -32,14 +32,14 @@ public:
     }
 
     template<typename ReturnLengthUnit = LengthUnit>
-    Position3<ReturnLengthUnit> getPosition()
+    Vector3<ReturnLengthUnit> getPosition()
     {
         updatePose();
         return { m_Pose.x(), m_Pose.y(), 0_m };
     }
 
     template<typename ReturnAngleUnit = AngleUnit>
-    Vector3<ReturnAngleUnit> getAttitude()
+    Array3<ReturnAngleUnit> getAttitude()
     {
         updatePose();
         return { m_Pose.yaw(), 0_rad, 0_rad };

@@ -100,9 +100,9 @@ public:
         return key;
     }
 
-    Position2<millimeter_t> getMouseClickPosition() const
+    Vector2<millimeter_t> getMouseClickPosition() const
     {
-        Position2<millimeter_t> out;
+        Vector2<millimeter_t> out;
         pixelToMM(m_MouseClickPosition[0], m_MouseClickPosition[1], out[0], out[1]);
         return out;
     }
@@ -114,7 +114,7 @@ private:
 
     millimeter_t m_MMPerPixel; // Scaling factor
 
-    Vector2<int> m_MouseClickPosition;
+    Array2<int> m_MouseClickPosition;
 
     bool m_IsOpen = true;
     SDL_Window *m_Window;

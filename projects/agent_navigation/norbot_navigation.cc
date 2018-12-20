@@ -31,7 +31,7 @@ using namespace units::angular_velocity;
 auto
 loadObjects(const std::string &objectsPath)
 {
-    std::vector<std::vector<Position2<millimeter_t>>> objects;
+    std::vector<std::vector<Vector2<millimeter_t>>> objects;
 
     std::cout << "Loading object positions from " << objectsPath << "..." << std::endl;
     cv::FileStorage fs(objectsPath, cv::FileStorage::READ);
@@ -109,8 +109,8 @@ bob_main(int argc, char **argv)
     Video::Display display(camUnwrapped);
 
     auto viconObject = vicon.getObject(0);
-    const Position2<millimeter_t> minBound{ -3000_mm, -3000_mm };
-    const Position2<millimeter_t> maxBound{ 3000_mm, 3000_mm };
+    const Vector2<millimeter_t> minBound{ -3000_mm, -3000_mm };
+    const Vector2<millimeter_t> maxBound{ 3000_mm, 3000_mm };
     runNavigation<millimeter_t>(*tank, viconObject, ForwardSpeed, TurnSpeed,
                                 camUnwrapped, minBound, maxBound, display,
                                 nullptr, objects, maxTurnSpeed);

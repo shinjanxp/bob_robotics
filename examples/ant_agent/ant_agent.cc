@@ -48,7 +48,7 @@ main()
         joystick.update();
 
         const auto position = agent.getPosition<>();
-        const Vector3<degree_t> attitude = agent.getAttitude<>();
+        const Array3<degree_t> attitude = agent.getAttitude<>();
         auto pose = std::make_tuple(position[0], position[1], attitude[0]);
         if (pose != lastPose) {
             std::cout << "Pose: " << position[0] << ", " << position[1] << ", " << attitude[0] << std::endl;

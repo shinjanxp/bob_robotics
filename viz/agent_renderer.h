@@ -56,15 +56,15 @@ public:
     static constexpr int WindowWidth = 800, WindowHeight = 800;
 
     AgentRenderer(const LengthUnit agentSize = 30_cm,
-                  const Position2<LengthUnit> &arenaSize = { 3.2_m, 3.2_m })
+                  const Vector2<LengthUnit> &arenaSize = { 3.2_m, 3.2_m })
       : AgentRenderer(agentSize,
-                      Position2<LengthUnit>{ -arenaSize[0] / 2, -arenaSize[1] / 2 },
-                      Position2<LengthUnit>{ arenaSize[0] / 2, arenaSize[1] / 2 })
+                      Vector2<LengthUnit>{ -arenaSize[0] / 2, -arenaSize[1] / 2 },
+                      Vector2<LengthUnit>{ arenaSize[0] / 2, arenaSize[1] / 2 })
     {}
 
     template<typename MaxBoundsType>
     AgentRenderer(const LengthUnit agentSize,
-                  const Position2<LengthUnit> &minBounds,
+                  const Vector2<LengthUnit> &minBounds,
                   const MaxBoundsType &maxBounds)
       : m_Window(sf::VideoMode(WindowWidth, WindowHeight),
                  "BoB robotics",
@@ -80,7 +80,7 @@ public:
         const LengthUnit height = maxBounds[1] - minBounds[1];
         BOB_ASSERT(width > 0_m && height > 0_m);
 
-        sf::Vector2u windowSize;
+        sf::Array2u windowSize;
         if (width > height) {
             m_UnitPerPixel = width / WindowWidth;
             windowSize.x = WindowWidth;
@@ -216,7 +216,7 @@ public:
         m_Window.close();
     }
 
-    void addObjects(const std::vector<std::vector<Position2<LengthUnit>>> &objects)
+    void addObjects(const std::vector<std::vector<Vector2<LengthUnit>>> &objects)
     {
         BOB_ASSERT(m_Objects.empty());
         m_Objects.reserve(objects.size());
@@ -244,7 +244,7 @@ private:
             m_Line[0].color = m_Line[1].color = sf::Color::Black;
         }
 
-        void draw(sf::RenderWindow &window, const sf::Vector2f position, const units::angle::degree_t rotation)
+        void draw(sf::RenderWindow &window, const sf::Array2f position, const units::angle::degree_t rotation)
         {
             // Set square's position
             const float width = m_Square.getSize().x;
@@ -280,7 +280,7 @@ private:
     sf::RectangleShape m_OriginLineHorizontal, m_OriginLineVertical;
     AgentMarker m_Agent;
     std::vector<sf::ConvexShape> m_Objects;
-    const Position2<LengthUnit> m_MinBounds;
+    const Vector2<LengthUnit> m_MinBounds;
     LengthUnit m_UnitPerPixel;
 
     static constexpr float OriginLineThickness = 3.f, OriginLineLength = 20.f;
@@ -290,7 +290,7 @@ private:
         return static_cast<float>((value / m_UnitPerPixel).value());
     }
 
-    sf::Vector2f lengthToVector(const LengthUnit x, const LengthUnit y) const
+    sf::Array2f lengthToVector(const LengthUnit x, const LengthUnit y) const
     {
         return { lengthToPixel(x - m_MinBounds[0]),
                  static_cast<float>(WindowHeight) - lengthToPixel(y - m_MinBounds[1]) };

@@ -42,7 +42,7 @@ bob_main(int, char **)
     const auto maxBound = world.getMaxBound();
 
     // Get objects
-    std::vector<std::vector<Position2<meter_t>>> objects;
+    std::vector<std::vector<Vector2<meter_t>>> objects;
     objects.reserve(objectsGL.size() / (3 * 3)); // Number of triangles
     for (auto it = objectsGL.begin() + 18; it < objectsGL.end(); it += 3 * 3) {
         objects.emplace_back(3);

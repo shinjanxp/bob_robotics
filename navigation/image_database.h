@@ -78,10 +78,10 @@ public:
     //! The metadata for an entry in an ImageDatabase
     struct Entry
     {
-        Position3<millimeter_t> position;
+        Vector3<millimeter_t> position;
         degree_t heading;
         filesystem::path path;
-        Vector3<size_t> gridPosition; //! For grid-type databases, indicates the x,y,z grid position
+        Array3<size_t> gridPosition; //! For grid-type databases, indicates the x,y,z grid position
 
         cv::Mat load() const
         {
@@ -170,8 +170,8 @@ public:
         }
 
         void addEntry(const std::string &filename, const cv::Mat &image,
-                      const Position3<millimeter_t> &position, const degree_t heading,
-                      const Vector3<size_t> &gridPosition = { 0, 0, 0 })
+                      const Vector3<millimeter_t> &position, const degree_t heading,
+                      const Array3<size_t> &gridPosition = { 0, 0, 0 })
         {
             BOB_ASSERT(m_Recording);
             m_ImageDatabase.writeImage(filename, image);
@@ -205,10 +205,10 @@ public:
         }
 
         //! Get the physical position represented by grid coordinates
-        Position3<millimeter_t> getPosition(const Vector3<size_t> &gridPosition)
+        Vector3<millimeter_t> getPosition(const Array3<size_t> &gridPosition)
         {
             BOB_ASSERT(gridPosition[0] < m_Size[0] && gridPosition[1] < m_Size[1] && gridPosition[2] < m_Size[2]);
-            Position3<millimeter_t> position;
+            Vector3<millimeter_t> position;
             for (size_t i = 0; i < position.size(); i++) {
                 position[i] = (m_Separation[i] * gridPosition[i]) + m_Begin[i];
             }
@@ -218,7 +218,7 @@ public:
         //! Get a vector of all possible positions for this grid
         auto getPositions()
         {
-            std::vector<Position3<millimeter_t>> positions;
+            std::vector<Vector3<millimeter_t>> positions;
             positions.reserve(maximumSize());
 
             for (size_t x = 0; x < sizeX(); x++) {
@@ -247,7 +247,7 @@ public:
         }
 
         //! Save a new image into the database at the specified coordinates
-        void record(const Vector3<size_t> &gridPosition, const cv::Mat &image)
+        void record(const Array3<size_t> &gridPosition, const cv::Mat &image)
         {
             const auto position = getPosition(gridPosition);
             const std::string filename = ImageDatabase::getFilename(position, getImageFormat());
@@ -261,9 +261,9 @@ public:
 
     private:
         const degree_t m_Heading;
-        const Position3<millimeter_t> m_Begin, m_Separation;
-        const Vector3<size_t> m_Size;
-        Vector3<size_t> m_Current;
+        const Vector3<millimeter_t> m_Begin, m_Separation;
+        const Array3<size_t> m_Size;
+        Array3<size_t> m_Current;
     };
 
     //! For saving images recorded along a route
@@ -276,7 +276,7 @@ public:
         }
 
         //! Save a new image taken at the specified pose
-        void record(const Position3<millimeter_t> &position, degree_t heading,
+        void record(const Vector3<millimeter_t> &position, degree_t heading,
                     const cv::Mat &image)
         {
             const std::string filename = ImageDatabase::getFilename(size(), getImageFormat());
@@ -326,7 +326,7 @@ public:
                 break;
             }
 
-            Vector3<size_t> gridPosition;
+            Array3<size_t> gridPosition;
             if (fields.size() >= 8) {
                 if (!hasMetadata()) {
                     // Infer that it is a grid
@@ -499,11 +499,11 @@ public:
     }
 
     //! Get a filename for a grid-type database
-    static std::string getFilename(const Position3<millimeter_t> &position,
+    static std::string getFilename(const Vector3<millimeter_t> &position,
                                    const std::string &imageFormat = "png")
     {
         // Convert to integers
-        Vector3<int> iposition;
+        Array3<int> iposition;
         std::transform(position.begin(), position.end(), iposition.begin(), [](auto mm) {
             return static_cast<int>(units::math::round(mm));
         });

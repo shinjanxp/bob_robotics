@@ -51,12 +51,12 @@ public:
 
     void render() const;
 
-    const Position3<meter_t> &getMinBound()
+    const Vector3<meter_t> &getMinBound()
     {
         return m_MinBound;
     }
 
-    const Position3<meter_t> &getMaxBound()
+    const Vector3<meter_t> &getMaxBound()
     {
         return m_MaxBound;
     }
@@ -136,8 +136,8 @@ private:
     std::vector<std::unique_ptr<Texture>> m_Textures;
 
     // World bounds
-    Position3<meter_t> m_MinBound;
-    Position3<meter_t> m_MaxBound;
+    Vector3<meter_t> m_MinBound;
+    Vector3<meter_t> m_MaxBound;
 };
 }   // namespace AntWorld
 }   // namespace BoBRobotics
