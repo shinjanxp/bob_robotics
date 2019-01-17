@@ -80,7 +80,7 @@ public:
         const LengthUnit height = maxBounds[1] - minBounds[1];
         BOB_ASSERT(width > 0_m && height > 0_m);
 
-        sf::Array2u windowSize;
+        sf::Vector2u windowSize;
         if (width > height) {
             m_UnitPerPixel = width / WindowWidth;
             windowSize.x = WindowWidth;
@@ -244,7 +244,7 @@ private:
             m_Line[0].color = m_Line[1].color = sf::Color::Black;
         }
 
-        void draw(sf::RenderWindow &window, const sf::Array2f position, const units::angle::degree_t rotation)
+        void draw(sf::RenderWindow &window, const sf::Vector2f position, const units::angle::degree_t rotation)
         {
             // Set square's position
             const float width = m_Square.getSize().x;
@@ -290,7 +290,7 @@ private:
         return static_cast<float>((value / m_UnitPerPixel).value());
     }
 
-    sf::Array2f lengthToVector(const LengthUnit x, const LengthUnit y) const
+    sf::Vector2f lengthToVector(const LengthUnit x, const LengthUnit y) const
     {
         return { lengthToPixel(x - m_MinBounds[0]),
                  static_cast<float>(WindowHeight) - lengthToPixel(y - m_MinBounds[1]) };
