@@ -23,9 +23,13 @@ namespace Robots {
 class TankNetSink : public Tank
 {
 private:
+    using millimeter_t = units::length::millimeter_t;
+    using meters_per_second_t = units::velocity::meters_per_second_t;
     using radians_per_second_t = units::angular_velocity::radians_per_second_t;
 
     Net::Connection &m_Connection;
+    millimeter_t m_AxisLength{ std::numeric_limits<double>::quiet_NaN() };
+    meters_per_second_t m_ForwardSpeed{ std::numeric_limits<double>::quiet_NaN() };
     radians_per_second_t m_TurnSpeed{ std::numeric_limits<double>::quiet_NaN() };
     float m_OldLeft = 0, m_OldRight = 0;
 
@@ -33,9 +37,19 @@ public:
     TankNetSink(Net::Connection &connection)
       : m_Connection(connection)
     {
-        connection.setCommandHandler("TRN", [this](Net::Connection &, const Net::Command &command) {
+        connection.setCommandHandler("TNK_PARAMS", [this](Net::Connection &, const Net::Command &command) {
+            if (command.size() != 4) {
+                throw Net::BadCommandError();
+            }
+
             m_TurnSpeed = radians_per_second_t(stod(command[1]));
+            m_ForwardSpeed = meters_per_second_t(stod(command[2]));
+            m_AxisLength = millimeter_t(stod(command[3]));
         });
+
+        // Wait for command
+        while (connection.readNextCommand() != "TNK_PARAMS")
+            ;
     }
 
     virtual ~TankNetSink()
@@ -48,6 +62,9 @@ public:
         } catch (Net::SocketClosedError &) {
             // Socket has already been cleanly closed
         }
+
+        // Stop listening for incoming commands
+        m_Connection.setCommandHandler("TNK_PARAMS", nullptr);
 
         stopReadingFromNetwork();
     }
@@ -72,10 +89,27 @@ public:
         m_OldRight = right;
     }
 
+    virtual millimeter_t getRobotAxisLength() override
+    {
+        if (std::isnan(m_AxisLength.value())) {
+            return Tank::getRobotAxisLength();
+        } else {
+            return m_AxisLength;
+        }
+    }
+
+    virtual meters_per_second_t getMaximumSpeed() override
+    {
+        if (std::isnan(m_ForwardSpeed.value())) {
+            return Tank::getMaximumSpeed();
+        } else {
+            return m_ForwardSpeed;
+        }
+    }
+
     virtual radians_per_second_t getMaximumTurnSpeed() override
     {
         if (std::isnan(m_TurnSpeed.value())) {
-            // throw error
             return Tank::getMaximumTurnSpeed();
         } else {
             return m_TurnSpeed;

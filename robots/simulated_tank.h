@@ -39,7 +39,7 @@ public:
     }
 
     template<typename ReturnAngleUnit = AngleUnit>
-    Array3<ReturnAngleUnit> getAttitude()
+    std::array<ReturnAngleUnit, 3> getAttitude()
     {
         updatePose();
         return { m_Pose.yaw(), 0_rad, 0_rad };

@@ -32,17 +32,14 @@ void readVector(std::istringstream &stream, std::vector<GLfloat> &vector, float 
         stream >> x;
         vector.push_back(x * scale);
     }
-
-    // Check this is the end of the linestream i.e. there aren't extra components
-    BOB_ASSERT(stream.eof());
 }
-
+//----------------------------------------------------------------------------
 void readFace(std::istringstream &lineStream,
               const std::vector<GLfloat> &rawPositions,
               const std::vector<GLfloat> &rawTexCoords,
               std::tuple<std::string, std::vector<GLfloat>, std::vector<GLfloat>> &currentObjSurface)
 {
-     // Get references to current material's positions and texture coordinates
+    // Get references to current material's positions and texture coordinates
     auto &surfacePositions = std::get<1>(currentObjSurface);
     auto &surfaceTexCoords = std::get<2>(currentObjSurface);
 
@@ -70,6 +67,14 @@ void readFace(std::istringstream &lineStream,
 
     // Check this is the end of the linestream i.e. there aren't extra components
     BOB_ASSERT(lineStream.eof());
+}
+//----------------------------------------------------------------------------
+void stripWindowsLineEnding(std::string &lineString)
+{
+    // If line has a Windows line ending, remove it
+    if(!lineString.empty() && lineString.back() == '\r') {
+        lineString.pop_back();
+    }
 }
 }
 
@@ -179,6 +184,9 @@ std::vector<GLfloat> World::load(const std::string &filename,
         surface.uploadColours(colours);
     }
 
+    // Unbind surface
+    surface.unbind();
+
     return positions;
 }
 //----------------------------------------------------------------------------
@@ -225,6 +233,9 @@ void World::loadObj(const std::string &filename, float scale, int maxTextureSize
         std::string commandString;
         std::string parameterString;
         while(std::getline(objFile, lineString)) {
+            // Strip windows line endings
+            stripWindowsLineEnding(lineString);
+
             // Entirely skip comment or empty lines
             if(lineString[0] == '#' || lineString.empty()) {
                 continue;
@@ -252,8 +263,9 @@ void World::loadObj(const std::string &filename, float scale, int maxTextureSize
                 readVector<3>(lineStream, rawPositions, scale);
             }
             else if(commandString == "vt") {
-                // Read texture coordinate
+                // Read texture coordinate and check there's no unhandled components following it
                 readVector<2>(lineStream, rawTexCoords, 1.0f);
+                BOB_ASSERT(lineStream.eof())
             }
             else if(commandString == "vn") {
                 // ignore vertex normals for now
@@ -319,6 +331,9 @@ void World::loadObj(const std::string &filename, float scale, int maxTextureSize
         if(tex != textureNames.end()) {
             surface.setTexture(tex->second);
         }
+
+        // Unbind surface
+        surface.unbind();
     }
 }
 //----------------------------------------------------------------------------
@@ -328,6 +343,7 @@ void World::render() const
     for(auto &surf : m_Surfaces) {
         surf.bind();
         surf.render();
+        surf.unbind();
     }
 }
 //----------------------------------------------------------------------------
@@ -349,6 +365,9 @@ void World::loadMaterials(const filesystem::path &basePath, const std::string &f
     std::string commandString;
     std::string parameterString;
     while(std::getline(mtlFile, lineString)) {
+        // Strip windows line endings
+        stripWindowsLineEnding(lineString);
+
         // Entirely skip comment or empty lines
         if(lineString[0] == '#' || lineString.empty()) {
             continue;
@@ -380,8 +399,12 @@ void World::loadMaterials(const filesystem::path &basePath, const std::string &f
             // Treat remainder of line as texture filename
             std::string textureFilename;
             std::getline(lineStream, textureFilename);
+            const size_t firstNonQuote = textureFilename.find_first_not_of('"');
+            const size_t lastNonQuote = textureFilename.find_last_not_of('"');
+            textureFilename = textureFilename.substr(firstNonQuote, lastNonQuote - firstNonQuote + 1);
 
-            std::cout << "\t\tTexture: " << textureFilename << std::endl;
+            std::cout << "\t\tTexture: '" << textureFilename << "'" << std::endl;
+
 
             // Load texture and add to map
             const std::string texturePath = (basePath / textureFilename).str();
@@ -392,7 +415,7 @@ void World::loadMaterials(const filesystem::path &basePath, const std::string &f
 
             // If texture couldn't be loaded, give warning
             if(texture.cols == 0 && texture.rows == 0) {
-                std::cerr << "WARNING:Cannot load texture" << std::endl;
+                std::cerr << "WARNING:Cannot load texture '" << texturePath << "'" << std::endl;
             }
             // Otherwise
             else {
@@ -452,6 +475,12 @@ void World::Texture::bind() const
     glBindTexture(GL_TEXTURE_2D, m_Texture);
 }
 //----------------------------------------------------------------------------
+void World::Texture::unbind() const
+{
+    // Unbind texture
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+//----------------------------------------------------------------------------
 void World::Texture::upload(const cv::Mat &texture, GLint textureFormat)
 {
     // Bind texture
@@ -502,6 +531,7 @@ void World::Surface::bind() const
 
     // If surface has a texture, bind it
     if(m_Texture != nullptr) {
+        glEnable(GL_TEXTURE_2D);
         m_Texture->bind();
     }
     // Otherwise make sure no textures are bound
@@ -510,8 +540,22 @@ void World::Surface::bind() const
     }
 }
 //----------------------------------------------------------------------------
+void World::Surface::unbind() const
+{
+    // If surface has a texture, bind it
+    if(m_Texture != nullptr) {
+        glDisable(GL_TEXTURE_2D);
+        m_Texture->unbind();
+    }
+
+    // Unbind vertex array
+    glBindVertexArray(0);
+}
+//----------------------------------------------------------------------------
 void World::Surface::render() const
 {
+    glEnable(GL_CULL_FACE);
+
     // Draw world
     glDrawArrays(GL_TRIANGLES, 0, m_NumVertices);
 }
@@ -535,6 +579,9 @@ void World::Surface::uploadPositions(const std::vector<GLfloat> &positions)
 
     // Calculate number of vertices from positions
     m_NumVertices = positions.size() / 3;
+
+    // Unbind buffer
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 //----------------------------------------------------------------------------
 void World::Surface::uploadColours(const std::vector<GLfloat> &colours)
@@ -553,6 +600,9 @@ void World::Surface::uploadColours(const std::vector<GLfloat> &colours)
     // Set colour pointer and enable client state in VAO
     glColorPointer(3, GL_FLOAT, 0, BUFFER_OFFSET(0));
     glEnableClientState(GL_COLOR_ARRAY);
+
+    // Unbind buffer
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 //----------------------------------------------------------------------------
 void World::Surface::uploadTexCoords(const std::vector<GLfloat> &texCoords)
@@ -571,6 +621,9 @@ void World::Surface::uploadTexCoords(const std::vector<GLfloat> &texCoords)
     // Set colour pointer and enable client state in VAO
     glTexCoordPointer(2, GL_FLOAT, 0, BUFFER_OFFSET(0));
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+    // Unbind buffer
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 }   // namespace AntWorld
 }   // namespace BoBRobotics

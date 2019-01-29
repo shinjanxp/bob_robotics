@@ -114,7 +114,7 @@ private:
 
     millimeter_t m_MMPerPixel; // Scaling factor
 
-    Array2<int> m_MouseClickPosition;
+    std::array<int, 2> m_MouseClickPosition;
 
     bool m_IsOpen = true;
     SDL_Window *m_Window;

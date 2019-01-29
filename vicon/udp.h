@@ -77,7 +77,7 @@ public:
     }
 
     template<typename AngleUnit = radian_t>
-    Array3<AngleUnit> getAttitude() const
+    std::array<AngleUnit, 3> getAttitude() const
     {
         return convertUnitArray<AngleUnit>(m_Attitude);
     }
@@ -93,8 +93,63 @@ private:
     uint32_t m_FrameNumber;
     char m_Name[24];
     Vector3<millimeter_t> m_Position;
-    Array3<radian_t> m_Attitude;
+    std::array<radian_t, 3> m_Attitude;
     Stopwatch m_ReceivedTimer;
+};
+
+// Forward declaration
+template<typename ObjectDataType>
+class UDPClient;
+
+//----------------------------------------------------------------------------
+// BoBRobotics::Vicon::ObjectReference
+//----------------------------------------------------------------------------
+/**!
+ *  \brief Holds a reference to a Vicon object
+ *
+ * The pose data is updated every time it is read, in contrast to ObjectData,
+ * which only contains static data.
+ */
+template<typename ObjectDataType = ObjectData>
+class ObjectReference
+{
+    using millimeter_t = units::length::millimeter_t;
+    using radian_t = units::angle::radian_t;
+
+public:
+    ObjectReference(UDPClient<ObjectDataType> &client, const unsigned id)
+        : m_Client(client)
+        , m_Id(id)
+    {}
+
+    template<typename LengthUnit = millimeter_t>
+    Vector3<LengthUnit> getPosition() const
+    {
+        return getData().template getPosition<LengthUnit>();
+    }
+
+    template<typename AngleUnit = radian_t>
+    std::array<AngleUnit, 3> getAttitude() const
+    {
+        return getData().template getAttitude<AngleUnit>();
+    }
+
+    template<typename LengthUnit = millimeter_t, typename AngleUnit = radian_t>
+    auto getPose() const
+    {
+        const auto data = getData();
+        return Pose3<LengthUnit, AngleUnit>(data.template getPosition<LengthUnit>(),
+                                            data.template getAttitude<AngleUnit>());
+    }
+
+    ObjectDataType getData() const
+    {
+        return m_Client.getObjectData(m_Id);
+    }
+
+private:
+    UDPClient<ObjectDataType> &m_Client;
+    const unsigned m_Id;
 };
 
 //----------------------------------------------------------------------------
@@ -131,7 +186,7 @@ public:
 
         // Calculate instantaneous velocity
         const auto oldPosition = getPosition<>();
-        Array3<meters_per_second_t> instVelocity;
+        std::array<meters_per_second_t, 3> instVelocity;
         const auto calcVelocity = [deltaS](auto curr, auto prev) {
             return (curr - prev) / deltaS;
         };
@@ -153,7 +208,7 @@ public:
     }
 
     template<typename VelocityUnit = meters_per_second_t>
-    Array3<VelocityUnit> getVelocity() const
+    std::array<VelocityUnit, 3> getVelocity() const
     {
         return convertUnitArray<VelocityUnit>(m_Velocity);
     }
@@ -162,7 +217,7 @@ private:
     //----------------------------------------------------------------------------
     // Members
     //----------------------------------------------------------------------------
-    Array3<meters_per_second_t> m_Velocity;
+    std::array<meters_per_second_t, 3> m_Velocity;
 };
 
 //----------------------------------------------------------------------------
@@ -173,46 +228,7 @@ template<typename ObjectDataType = ObjectData>
 class UDPClient
 {
 public:
-    class Object
-    {
-        using millimeter_t = units::length::millimeter_t;
-        using radian_t = units::angle::radian_t;
 
-    public:
-        Object(UDPClient<ObjectDataType> &client, const unsigned id)
-          : m_Client(client)
-          , m_Id(id)
-        {}
-
-        template<typename LengthUnit = millimeter_t>
-        Vector3<LengthUnit> getPosition() const
-        {
-            return getData().template getPosition<LengthUnit>();
-        }
-
-        template<typename AngleUnit = radian_t>
-        Array3<AngleUnit> getAttitude() const
-        {
-            return getData().template getAttitude<AngleUnit>();
-        }
-
-        template<typename LengthUnit = millimeter_t, typename AngleUnit = radian_t>
-        auto getPose() const
-        {
-            const auto data = getData();
-            return Pose3<LengthUnit, AngleUnit>(data.template getPosition<LengthUnit>(),
-                                                data.template getAttitude<AngleUnit>());
-        }
-
-        ObjectDataType getData() const
-        {
-            return m_Client.getObjectData(m_Id);
-        }
-
-    private:
-        UDPClient<ObjectDataType> &m_Client;
-        const unsigned m_Id;
-    };
 
     UDPClient(){}
     UDPClient(uint16_t port)
@@ -296,15 +312,17 @@ public:
         }
     }
 
+    //! Get current pose information for specified object
     ObjectDataType getObjectData(unsigned int id)
     {
         std::lock_guard<std::mutex> guard(m_ObjectDataMutex);
         return m_ObjectData.at(id);
     }
 
-    Object getObject(unsigned int id)
+    //! Returns an object whose pose is updated by the Vicon system over time
+    auto getObjectReference(unsigned int id)
     {
-        return Object(*this, id);
+        return ObjectReference<ObjectDataType>(*this, id);
     }
 
 private:
@@ -313,8 +331,8 @@ private:
     //----------------------------------------------------------------------------
     void updateObjectData(unsigned int id, const char(&name)[24],
                           uint32_t frameNumber,
-                          const Array3<double> &position,
-                          const Array3<double> &attitude)
+                          const std::array<double, 3> &position,
+                          const std::array<double, 3> &attitude)
     {
         // Lock mutex
         std::lock_guard<std::mutex> guard(m_ObjectDataMutex);
@@ -391,11 +409,11 @@ private:
                     BOB_ASSERT(objectName[23] == '\0');
 
                     // Read object position
-                    Array3<double> position;
+                    std::array<double, 3> position;
                     memcpy(&position[0], &buffer[itemOffset + 27], 3 * sizeof(double));
 
                     // Read object attitude
-                    Array3<double> attitude;
+                    std::array<double, 3> attitude;
                     memcpy(&attitude[0], &buffer[itemOffset + 51], 3 * sizeof(double));
 
                     // Update item

@@ -2,7 +2,6 @@
 
 // BoB robotics includes
 #include "../common/pose.h"
-#include "../common/stopwatch.h"
 #include "../hid/joystick.h"
 #include "../robots/robot.h"
 #include "../video/opengl.h"
@@ -44,7 +43,8 @@ class AntAgent
     using radians_per_second_t = units::angular_velocity::radians_per_second_t;
 
 public:
-    static constexpr meters_per_second_t DefaultVelocity = 300_mm / 1_s;
+    // I chose these values to be (roughly) desert ant-like -- AD
+    static constexpr meters_per_second_t DefaultVelocity = 0.03_mps;
     static constexpr radians_per_second_t DefaultTurnSpeed = 200_deg_per_s;
 
     AntAgent(GLFWwindow *window, Renderer &renderer,
@@ -89,26 +89,20 @@ public:
     }
 
     template<typename LengthUnit = meter_t>
-    Vector3<LengthUnit> getPosition()
+    Vector3<LengthUnit> getPosition() const
     {
-        std::lock_guard<std::mutex> guard(m_PoseMutex);
-        updatePose();
         return convertUnitArray<LengthUnit>(m_Pose.position());
     }
 
     template<typename AngleUnit = degree_t>
-    Array3<AngleUnit> getAttitude()
+    std::array<AngleUnit, 3> getAttitude() const
     {
-        std::lock_guard<std::mutex> guard(m_PoseMutex);
-        updatePose();
         return convertUnitArray<AngleUnit>(m_Pose.attitude());
     }
 
     template<typename LengthUnit = meter_t, typename AngleUnit = degree_t>
-    Pose3<LengthUnit, AngleUnit> getPose()
+    Pose3<LengthUnit, AngleUnit> getPose() const
     {
-        std::lock_guard<std::mutex> guard(m_PoseMutex);
-        updatePose();
         return m_Pose;
     }
 
@@ -117,7 +111,7 @@ public:
         return m_Window;
     }
 
-    virtual radians_per_second_t getMaximumTurnSpeed() override
+    radians_per_second_t getMaximumTurnSpeed() const
     {
         return m_TurnSpeed;
     }
@@ -136,10 +130,6 @@ public:
 
     bool update()
     {
-        // If the agent is "moving", we need to calculate its current position
-        std::lock_guard<std::mutex> guard(m_PoseMutex);
-        updatePose();
-
         // Render to m_Window
         glfwMakeContextCurrent(m_Window);
 
@@ -170,33 +160,50 @@ public:
 
     virtual void stopMoving() override
     {
-        std::lock_guard<std::mutex> guard(m_PoseMutex);
-        updatePose();
         m_MoveMode = MoveMode::NotMoving;
     }
 
     virtual void moveForward(float speed) override
     {
         BOB_ASSERT(speed >= -1.f && speed <= 1.f);
-
-        std::lock_guard<std::mutex> guard(m_PoseMutex);
         BOB_ASSERT(m_Pose.pitch() == 0_deg && m_Pose.roll() == 0_deg);
 
-        updatePose();
         m_MoveMode = MoveMode::MovingForward;
-        m_MoveSpeed = speed;
+        m_SpeedProportion = speed;
     }
 
     virtual void turnOnTheSpot(float clockwiseSpeed) override
     {
         BOB_ASSERT(clockwiseSpeed >= -1.f && clockwiseSpeed <= 1.f);
-
-        std::lock_guard<std::mutex> guard(m_PoseMutex);
         BOB_ASSERT(m_Pose.pitch() == 0_deg && m_Pose.roll() == 0_deg);
 
-        updatePose();
         m_MoveMode = MoveMode::Turning;
-        m_MoveSpeed = clockwiseSpeed;
+        m_SpeedProportion = clockwiseSpeed;
+    }
+
+    void updatePose(const units::time::second_t elapsedTime)
+    {
+        std::lock_guard<std::mutex> guard(m_PoseMutex);
+
+        using namespace units::math;
+        switch (m_MoveMode) {
+        case MoveMode::MovingForward: {
+            const meter_t dist = m_SpeedProportion * m_Velocity * elapsedTime;
+            m_Pose.x() += dist * cos(m_Pose.yaw());
+            m_Pose.y() += dist * sin(m_Pose.yaw());
+        } break;
+        case MoveMode::Turning:
+            m_Pose.yaw() -= m_SpeedProportion * m_TurnSpeed * elapsedTime;
+            while (m_Pose.yaw() > 360_deg) {
+                m_Pose.yaw() -= 360_deg;
+            }
+            while (m_Pose.yaw() < 0_deg) {
+                m_Pose.yaw() += 360_deg;
+            }
+            break;
+        default:
+            break;
+        }
     }
 
     static auto initialiseWindow(const cv::Size &size)
@@ -249,8 +256,6 @@ public:
     }
 
 private:
-    using TimeType = std::chrono::time_point<std::chrono::high_resolution_clock>;
-
     Pose3<meter_t, degree_t> m_Pose;
     meters_per_second_t m_Velocity;
     radians_per_second_t m_TurnSpeed;
@@ -259,39 +264,13 @@ private:
     std::mutex m_PoseMutex;
     float m_JoystickX = 0.f, m_JoystickY = 0.f;
 
-    Stopwatch m_MoveStopwatch;
     enum class MoveMode
     {
         NotMoving,
         MovingForward,
         Turning
     } m_MoveMode = MoveMode::NotMoving;
-    float m_MoveSpeed;
-
-    void updatePose()
-    {
-        const units::time::second_t elapsed = m_MoveStopwatch.lap();
-
-        using namespace units::math;
-        switch (m_MoveMode) {
-        case MoveMode::MovingForward: {
-            const meter_t dist = m_MoveSpeed * m_Velocity * elapsed;
-            m_Pose.x() += dist * cos(m_Pose.yaw());
-            m_Pose.y() += dist * sin(m_Pose.yaw());
-        } break;
-        case MoveMode::Turning:
-            m_Pose.yaw() -= m_MoveSpeed * m_TurnSpeed * elapsed;
-            while (m_Pose.yaw() > 360_deg) {
-                m_Pose.yaw() -= 360_deg;
-            }
-            while (m_Pose.yaw() < 0_deg) {
-                m_Pose.yaw() += 360_deg;
-            }
-            break;
-        default:
-            break;
-        }
-    }
+    float m_SpeedProportion; //! From -1 to 1: indicates proportion of max forward/turning speed
 
     static void handleGLFWError(int errorNumber, const char *message)
     {
@@ -301,11 +280,6 @@ private:
     static void handleGLError(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar *message, const void *)
     {
         throw std::runtime_error(message);
-    }
-
-    static TimeType now()
-    {
-        return std::chrono::high_resolution_clock::now();
     }
 }; // AntAgent
 

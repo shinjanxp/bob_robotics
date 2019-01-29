@@ -77,15 +77,16 @@ public:
 
     virtual ~Connection() override
     {
-        // If connected, notify other side that we want to close connection, then close it
         if (m_Socket.isOpen()) {
-            getSocketWriter().send("BYE\n");
+            m_Socket.send("BYE\n");
             m_Socket.close();
         }
 
-        // Wait for read thread to finish
+        // Wait for thread to terminate
         stop();
     }
+
+    bool isOpen() const { return m_Socket.isOpen(); }
 
     /*!
      * \brief Add a handler for a specified type of command
@@ -124,6 +125,13 @@ public:
     SocketWriter getSocketWriter()
     {
         return SocketWriter(*this);
+    }
+
+    std::string readNextCommand()
+    {
+        Command command = readCommand();
+        parseCommand(command);
+        return command[0];
     }
 
     // Object is non-copyable
