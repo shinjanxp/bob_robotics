@@ -108,7 +108,7 @@ bob_main(int argc, char **argv)
 
     Video::Display display(camUnwrapped);
 
-    auto viconObject = vicon.getObject(0);
+    auto viconObject = vicon.getObjectReference(0);
     const Vector2<millimeter_t> minBound{ -3000_mm, -3000_mm };
     const Vector2<millimeter_t> maxBound{ 3000_mm, 3000_mm };
     runNavigation<millimeter_t>(*tank, viconObject, ForwardSpeed, TurnSpeed,

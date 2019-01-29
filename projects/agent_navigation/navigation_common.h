@@ -111,9 +111,6 @@ runNavigation(Robots::Robot &robot,
 
     Navigation::PerfectMemoryRotater<> pm(videoInput.getOutputSize());
 
-    auto &catcher = BackgroundExceptionCatcher::getInstance();
-    catcher.trapSignals();
-
     bool testing = false;
     EggTimer turnTimer;
     Viz::AgentRenderer<LengthUnit> renderer(10_cm, minBounds, maxBounds);
@@ -192,6 +189,9 @@ runNavigation(Robots::Robot &robot,
             }
         });
     }
+
+    BackgroundExceptionCatcher catcher;
+    catcher.trapSignals();
 
     constexpr degree_t maxTurn = 45_deg;
     cv::Mat frame;

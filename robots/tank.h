@@ -169,9 +169,9 @@ public:
             // Then getMaximumSpeed() isn't implemented
         }
         try {
-            axisLength = getRobotAxisLength().value();
+            axisLength = getRobotWidth().value();
         } catch (std::runtime_error &) {
-            // Then getRobotAxisLength() isn't implemented
+            // Then getRobotWidth() isn't implemented
         }
 
         std::stringstream ss;

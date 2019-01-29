@@ -1,7 +1,7 @@
 #pragma once
 
 // BoB robotics includes
-#include "pose.h"
+#include "../common/pose.h"
 
 // Third-party includes
 #include "../third_party/matplotlibcpp.h"
@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace BoBRobotics {
+namespace Viz {
 template<typename LengthUnit, typename AgentType>
 void
 plotAgent(AgentType &agent,
@@ -44,5 +45,6 @@ plotAgent(AgentType &agent,
     const std::string abbrev = units::abbreviation(xLower);
     plt::xlabel("x (" + abbrev + ")");
     plt::ylabel("y (" + abbrev + ")");
+}
 } // Viz
 } // BoBRobotics
