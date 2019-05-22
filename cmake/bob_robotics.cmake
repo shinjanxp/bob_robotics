@@ -179,7 +179,7 @@ macro(always_included_packages)
     # "passed up" by add_subdirectory(), so we always include these packages on
     # the off-chance we need them.
     if(NOT TARGET Eigen3::Eigen)
-        find_package(Eigen3 QUIET)
+        find_package(Eigen3 3.3 REQUIRED NO_MODULE)
     endif()
     if(NOT TARGET OpenMP::OpenMP_CXX)
         find_package(OpenMP QUIET)
@@ -407,6 +407,7 @@ function(BoB_external_libraries)
                 # Only works if the same flag is passed to the linker; use CMake 3.9+ otherwise (Intel, AppleClang)
                 set_property(TARGET OpenMP::OpenMP_CXX
                              PROPERTY INTERFACE_LINK_LIBRARIES ${OpenMP_CXX_FLAGS} Threads::Threads)
+                find_package(OpenMP REQUIRED)
 
                 BoB_add_link_libraries(OpenMP::OpenMP_CXX)
             endif()
