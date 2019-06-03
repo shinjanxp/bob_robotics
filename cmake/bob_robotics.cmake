@@ -209,13 +209,15 @@ macro(BoB_build)
         set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
     endif()
 
-    # Use ccache if present to speed up repeat builds
-    find_program(CCACHE_FOUND ccache)
-    if(CCACHE_FOUND)
-        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-        set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-    else()
-        message(WARNING "ccache not found. Install for faster repeat builds.")
+    if(NOT WIN32)
+        # Use ccache if present to speed up repeat builds
+        find_program(CCACHE_FOUND ccache)
+        if(CCACHE_FOUND)
+            set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+            set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+        else()
+            message(WARNING "ccache not found. Install for faster repeat builds.")
+        endif()
     endif()
 
     # Set DEBUG macro when compiling in debug mode
@@ -553,7 +555,7 @@ if(WIN32)
 
     # The vcpkg toolchain in theory should do something like this already, but
     # if we don't do this, then cmake can't find any of vcpkg's packages
-    file(GLOB children "$ENV{VCPKG_ROOT}/installed/${CMAKE_GENERATOR_PLATFORM}-windows")
+    file(GLOB children "$ENV{VCPKG_ROOT}/installed/${CMAKE_GENERATOR_PLATFORM}-windows/share/*")
     foreach(child IN LISTS children)
         if(IS_DIRECTORY "${child}")
             list(APPEND CMAKE_PREFIX_PATH "${child}")
